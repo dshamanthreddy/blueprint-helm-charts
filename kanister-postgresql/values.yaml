@@ -133,5 +133,5 @@ kanister:
   s3_bucket:
   s3_endpoint:
   s3_verify_ssl: true
-  restore:
+  s3_region:
   controller_namespace: kasten-io
