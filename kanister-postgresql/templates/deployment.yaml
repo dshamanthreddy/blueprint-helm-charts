@@ -7,6 +7,8 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
+  annotations:
+    kanister.kasten.io/blueprint: {{ template "postgresql.fullname" . }}-blueprint
 spec:
   template:
     metadata:
@@ -28,8 +30,68 @@ spec:
       {{- if .Values.schedulerName }}
       schedulerName: "{{ .Values.schedulerName }}"
       {{- end }}
+      initContainers:
+        - name: kanister-restore-backup
+          image: "{{ .Values.image }}:{{ .Values.imageTag }}"
+          imagePullPolicy: {{ default "" .Values.imagePullPolicy | quote }}
+          command:
+          - bash
+          - -c
+          - |
+            if [[ -d ${PGDATA}/kanister-restore ]]
+            then
+                cp -r ${PGDATA}/*.conf ${PGDATA}/kanister-restore/
+                ls -d ${PGDATA}/* | grep -v kanister-restore | xargs rm -fr
+                cp -r ${PGDATA}/kanister-restore/* ${PGDATA}/
+                rm -fr ${PGDATA}/kanister-restore
+                chown postgres:postgres -R ${PGDATA}/*
+                cat ${PGDATA}/recovery.conf
+                su - postgres --preserve-environment -c '/usr/lib/postgresql/9.6/bin/pg_ctl -D ${PGDATA} -w start -t 6000'
+                mv ${PGDATA}/recovery.conf ${PGDATA}/recovery.done_kanister || true
+            fi
+          env:
+          - name: POSTGRES_USER
+            value: {{ default "postgres" .Values.postgresUser | quote }}
+          - name: PGUSER
+            value: {{ default "postgres" .Values.postgresUser | quote }}
+          - name: PGDATA
+            value: /var/lib/postgresql/data/pgdata
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "postgresql.fullname" . }}
+                key: postgres-password
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "postgresql.fullname" . }}-backup-creds
+                key: s3_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "postgresql.fullname" . }}-backup-creds
+                key: s3_secret_access_key
+          - name: WALE_S3_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "postgresql.fullname" . }}-backup-config
+                key: s3_bucket
+          {{- if .Values.kanister.s3_endpoint }}
+          - name: WALE_S3_ENDPOINT
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "postgresql.fullname" . }}-backup-config
+                key: s3_endpoint
+          {{- else }}
+          - name: AWS_REGION
+            value: {{ default "us-east-1" .Values.kanister.s3_region | quote }}
+          {{- end }}
+          volumeMounts:
+          - name: data
+            mountPath: {{ .Values.persistence.mountPath }}
+            subPath: {{ .Values.persistence.subPath }}
       containers:
-      - name: {{ template "postgresql.fullname" . }}
+      - name: postgresql
         image: "{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ default "" .Values.imagePullPolicy | quote }}
         args:
@@ -56,6 +118,31 @@ spec:
               key: postgres-password
         - name: POD_IP
           valueFrom: { fieldRef: { fieldPath: status.podIP } }
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "postgresql.fullname" . }}-backup-creds
+              key: s3_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "postgresql.fullname" . }}-backup-creds
+              key: s3_secret_access_key
+        - name: WALE_S3_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "postgresql.fullname" . }}-backup-config
+              key: s3_bucket
+        {{- if .Values.kanister.s3_endpoint }}
+        - name: WALE_S3_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "postgresql.fullname" . }}-backup-config
+              key: s3_endpoint
+        {{- else }}
+        - name: AWS_REGION
+          value: {{ default "us-east-1" .Values.kanister.s3_region | quote }}
+        {{- end }}
         ports:
         - name: postgresql
           containerPort: 5432

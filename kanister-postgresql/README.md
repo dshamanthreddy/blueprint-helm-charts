@@ -2,6 +2,8 @@
 
 [PostgreSQL](https://postgresql.org) is a powerful, open source object-relational database system. It has more than 15 years of active development and a proven architecture that has earned it a strong reputation for reliability, data integrity, and correctness.
 
+[Kanister](https://kansiter.io) is a framework that enables application-level data management on Kubernetes.
+
 ## TL;DR;
 
 ```bash
@@ -36,6 +38,8 @@ To uninstall/delete the `my-release` deployment:
 ```bash
 $ helm delete my-release
 ```
+
+The command removes all the Kubernetes components associated with the chart and deletes the release.
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
@@ -79,6 +83,12 @@ The following table lists the configurable parameters of the PostgreSQL chart an
 | `nodeSelector`             | Node labels for pod assignment                  | {}                                                         |
 | `affinity`                 | Affinity settings for pod assignment            | {}                                                         |
 | `tolerations`              | Toleration labels for pod assignment            | []                                                         |
+| `kanister.s3_api_key`      | (Required) API Key for an s3 compatible object store | `nil`                                                 |
+| `kanister.s3_api_secret`   | (Required) Corresponding secret for `s3_api_key` | `nil`                                                     |
+| `kanister.s3_bucket`       | (Required) A bucket that will be used to store Kanister artifacts. <br><br>The bucket must already exist and the account with the above API key and secret needs to have sufficient permissions to list, get, put, delete. | `nil` |
+| `kanister.s3_endpoint`     | (Optional) The URL for an s3 compatible object store provider. Can be omitted if provider is AWS. Required for any other provider. | `nil` |
+| `kanister.s3_verify_ssl`   | (Optional) Set to ``false`` to disable SSL verification on the s3 endpoint | `true`                          |
+| `kanister.controller_namespace` | (Optional) Specify the namespace where the Kanister controller is running | kasten-io                   |
 
 The above parameters map to the env variables defined in [postgres](http://github.com/docker-library/postgres). For more information please refer to the [postgres](http://github.com/docker-library/postgres) image documentation.
 

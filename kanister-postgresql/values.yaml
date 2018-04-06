@@ -1,9 +1,9 @@
 ## postgres image repository
-image: "postgres"
+image: "kanisterio/postgres"
 ## postgres image version
 ## ref: https://hub.docker.com/r/library/postgres/tags/
 ##
-imageTag: "9.6.2"
+imageTag: "v0.1.0"
 
 ## Specify a imagePullPolicy
 ## 'Always' if imageTag is 'latest', else set to 'IfNotPresent'
@@ -39,7 +39,11 @@ imageTag: "9.6.2"
 ## Specify runtime config parameters as a dict, using camelCase, e.g.
 ## {"sharedBuffers": "500MB"}
 ## ref: https://www.postgresql.org/docs/current/static/runtime-config.html
-# postgresConfig:
+postgresConfig:
+  wal_level: archive
+  archive_mode: on
+  archive_command: 'wal-e wal-push %p'
+  archive_timeout: 60
 
 ## Persist data to a persitent volume
 persistence:
@@ -121,3 +125,13 @@ networkPolicy:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Configure Kanister
+kanister:
+  s3_api_key:
+  s3_api_secret:
+  s3_bucket:
+  s3_endpoint:
+  s3_verify_ssl: true
+  restore:
+  controller_namespace: kasten-io
