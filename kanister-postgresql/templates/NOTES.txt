@@ -36,9 +36,9 @@ To connect to your database directly from outside the K8s cluster:
 
 This instance has been configured to use Kanister for backup and recovery.
 WALs are pushed to an S3 compliant object store as soon as they are created. A
-base-backup is required before these logs are usable.
+base backup is required before these logs are usable.
 
-To a base-backup using kanister, simply create a backup ActionSet:
+To create a base backup using kanister, simply create a backup ActionSet:
 
     $ cat << EOF | kubectl create -f -
         apiVersion: cr.kanister.io/v1alpha1
@@ -56,7 +56,7 @@ To a base-backup using kanister, simply create a backup ActionSet:
                 namespace: {{ .Release.Namespace }}
     EOF
 
-Once a base-backup has been taken, you can recover up to the most recent WAL
+Once a base backup has been taken, you can recover up to the most recent WAL
 file in the latest timeline by creating a restore ActionSet.
 
     $ cat << EOF | kubectl create -f -
