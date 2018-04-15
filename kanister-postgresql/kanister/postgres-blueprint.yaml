@@ -46,7 +46,9 @@ actions:
           cat << EOF > "${recover_dir}"/recovery.conf
           restore_command = 'wal-e wal-fetch "%f" "%p"'
           recovery_target_action = 'shutdown'
+          recovery_end_command = 'rm -fr $PGDATA/recovery.conf'
           EOF
+          sync
     - func: KubeTask
       name: restartPod
       args:
@@ -57,6 +59,26 @@ actions:
         - errexit
         - -o
         - pipefail
+        - -o
+        - xtrace
         - -c
         - |
-          kubectl delete --namespace "{{ .Deployment.Namespace }}" pod "{{ index .Deployment.Pods 0 }}"
+          # Recreate (scale down and up) the pod so it can be recreated forcing init containers
+          # to run again. One of the init containers will move the restored files to the
+          # correct data location.
+          # Need to wait for terminating pod instance to complete before
+          # scaling back up to avoid writing to the same volume from the PG shutdown sequence
+          # in the terminating pod and the restore completion init container simultaneously.
+          #
+          # TODO: Should have a kanister function to abstract the termination sync
+          # or should incorporate in any function that replaces data files under the
+          # application
+          namespace="{{ .Deployment.Namespace }}"
+          deployment="{{ .Deployment.Name }}"
+          pod="{{ index .Deployment.Pods 0 }}"
+          kubectl scale --namespace $namespace deployment $deployment --replicas=0
+          while [ ! -z "$(kubectl -n $namespace get pod | grep $pod | grep Terminating)" ]
+          do
+            sleep 1
+          done
+          kubectl scale --namespace $namespace deployment $deployment --replicas=1
