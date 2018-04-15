@@ -51,6 +51,7 @@ spec:
             then
                 # Recovery in progress. Finalizing replacing files
                 # Replace files from the relevant full backup
+                #
                 # TODO: Currently .conf files unchanged. Include in backup in future
                 ls -d ${PGDATA}/kanister-restore/* | sed 's/kanister-restore\///' | xargs -t rm -fr
                 mv ${PGDATA}/kanister-restore/* ${PGDATA}/.
@@ -62,10 +63,8 @@ spec:
                 cat ${PGDATA}/recovery.conf
                 PG_CTL="$(which pg_ctl)"
                 su - postgres --preserve-environment -c "${PG_CTL} -D ${PGDATA} -w start -t 36000"
-                # Regardless of how we get here, complete recovery
-                # Needed if the recovery is interrupted because of incomplete WAL set (for latest)
-                # TODO: Once specific PIT recovery is supported this can be simplified
-                mv ${PGDATA}/recovery.conf ${PGDATA}/recovery.done_kanister || true
+                # Should have recovered to recovery.conf settings. Current version instructs
+                # postgress to shutdown when recovery is complete
             fi
           env:
           - name: POSTGRES_USER
